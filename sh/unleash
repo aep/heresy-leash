@@ -1,0 +1,81 @@
+#!/bin/sh
+
+DBPATH=/var/lib/pacman/
+
+function list {
+    for i in ${DBPATH}/local/*; do
+        basename $i
+    done    
+}
+
+function describe {
+
+    if [ $# -gt 0 ]; then
+        echo $@ | describe
+        return
+    fi
+
+    while read f; do
+        if [ ! -e "$f" ]; then
+            find  ${DBPATH} -regex "^.*/${f}-[^-]*-[^-/]*$" |  describe
+            continue
+        fi
+
+        cat $f/desc | while read l; do
+            if [ "$l" = "%DESC%" ]; then
+                read DESC
+
+                echo -n $(basename $(dirname $f))"/"
+                echo $f |  rev | cut -d '/' -f 1 | rev
+                echo "    "$DESC
+                return
+            fi
+        done 
+    done
+}
+
+function install {
+    if [ $# -gt 0 ]; then
+        echo $@ | install
+        return
+    fi
+
+    while read f; do
+        if [ ! -e "$f" ]; then
+            find  ${DBPATH} -regex "^.*/${f}-[^-]*-[^-/]*$" | install
+            continue
+        fi
+
+        cat $f/desc | while read l; do
+            if [ "$l" = "%DESC%" ]; then
+                read DESC
+
+                echo -n $(basename $(dirname $f))"/"
+                echo $f |  rev | cut -d '/' -f 1 | rev
+                echo "    "$DESC
+                return
+            fi
+        done 
+    done
+}
+
+function search {
+    for r in ${DBPATH}/sync/* ; do
+        for i in $(egrep -i $1 ${r}/*/desc | cut -d ':' -f 1 | uniq); do
+            describe $(dirname $i)
+        done
+    done
+}
+
+function installed {
+    ls ${DBPATH}/local/ | rev |  cut -d '/' -f 1 | rev
+}
+
+function main {
+    f=$1
+    shift 1
+    $f $*
+}
+
+
+main $*
